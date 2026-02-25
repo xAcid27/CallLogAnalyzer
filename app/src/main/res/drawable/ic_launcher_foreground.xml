@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Phone icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30
+            C42.95,30 34,38.95 34,50
+            C34,61.05 42.95,70 54,70
+            C65.05,70 74,61.05 74,50
+            C74,38.95 65.05,30 54,30z
+            M62.5,58.5
+            L58.5,58.5
+            L58.5,54.5
+            L62.5,54.5
+            L62.5,58.5z
+            M62.5,52.5
+            L58.5,52.5
+            L58.5,41.5
+            L62.5,41.5
+            L62.5,52.5z
+            M56.5,58.5
+            L52.5,58.5
+            L52.5,46.5
+            L56.5,46.5
+            L56.5,58.5z
+            M50.5,58.5
+            L46.5,58.5
+            L46.5,50.5
+            L50.5,50.5
+            L50.5,58.5z"/>
+            
+    <!-- Chart bars representing call stats -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M44,55 L44,62 L48,62 L48,55 Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M51,50 L51,62 L55,62 L55,50 Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M58,45 L58,62 L62,62 L62,45 Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M65,52 L65,62 L69,62 L69,52 Z"/>
+        
+</vector>

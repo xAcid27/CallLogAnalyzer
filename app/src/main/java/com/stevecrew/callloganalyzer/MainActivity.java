@@ -2,6 +2,7 @@ package com.stevecrew.callloganalyzer;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
@@ -12,6 +13,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.github.mikephil.charting.charts.PieChart;
+import com.github.mikephil.charting.data.PieData;
+import com.github.mikephil.charting.data.PieDataSet;
+import com.github.mikephil.charting.data.PieEntry;
+import com.github.mikephil.charting.formatter.PercentFormatter;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -23,8 +31,15 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvIncoming, tvOutgoing, tvMissed, tvRejected;
     private TextView tvTopCallers, tvTopDuration, tvStatus, tvTotalCalls;
     private Button btnExport;
+    private PieChart pieChart;
     
     private CallLogHelper callLogHelper;
+
+    // Colors matching our theme
+    private final int COLOR_GREEN = Color.parseColor("#2E7D32");
+    private final int COLOR_BLUE = Color.parseColor("#1565C0");
+    private final int COLOR_ORANGE = Color.parseColor("#EF6C00");
+    private final int COLOR_RED = Color.parseColor("#C62828");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,7 +56,10 @@ public class MainActivity extends AppCompatActivity {
         tvStatus = findViewById(R.id.tvStatus);
         tvTotalCalls = findViewById(R.id.tvTotalCalls);
         btnExport = findViewById(R.id.btnExport);
+        pieChart = findViewById(R.id.pieChart);
 
+        setupPieChart();
+        
         callLogHelper = new CallLogHelper(this);
 
         btnExport.setOnClickListener(v -> exportData());
@@ -52,6 +70,71 @@ public class MainActivity extends AppCompatActivity {
         } else {
             requestPermission();
         }
+    }
+
+    private void setupPieChart() {
+        pieChart.setUsePercentValues(true);
+        pieChart.getDescription().setEnabled(false);
+        pieChart.setDrawHoleEnabled(true);
+        pieChart.setHoleColor(Color.parseColor("#2D2D2D"));
+        pieChart.setHoleRadius(45f);
+        pieChart.setTransparentCircleRadius(50f);
+        pieChart.setTransparentCircleColor(Color.parseColor("#2D2D2D"));
+        pieChart.setTransparentCircleAlpha(100);
+        pieChart.setDrawCenterText(true);
+        pieChart.setCenterTextColor(Color.WHITE);
+        pieChart.setCenterTextSize(16f);
+        pieChart.setRotationEnabled(true);
+        pieChart.setHighlightPerTapEnabled(true);
+        pieChart.getLegend().setEnabled(true);
+        pieChart.getLegend().setTextColor(Color.parseColor("#B3B3B3"));
+        pieChart.getLegend().setTextSize(12f);
+        pieChart.setEntryLabelColor(Color.WHITE);
+        pieChart.setEntryLabelTextSize(11f);
+        pieChart.animateY(800);
+    }
+
+    private void updatePieChart(int incoming, int outgoing, int missed, int rejected) {
+        ArrayList<PieEntry> entries = new ArrayList<>();
+        ArrayList<Integer> colors = new ArrayList<>();
+        
+        if (incoming > 0) {
+            entries.add(new PieEntry(incoming, "Incoming"));
+            colors.add(COLOR_GREEN);
+        }
+        if (outgoing > 0) {
+            entries.add(new PieEntry(outgoing, "Outgoing"));
+            colors.add(COLOR_BLUE);
+        }
+        if (missed > 0) {
+            entries.add(new PieEntry(missed, "Missed"));
+            colors.add(COLOR_ORANGE);
+        }
+        if (rejected > 0) {
+            entries.add(new PieEntry(rejected, "Rejected"));
+            colors.add(COLOR_RED);
+        }
+
+        if (entries.isEmpty()) {
+            pieChart.setData(null);
+            pieChart.setCenterText("No data");
+            pieChart.invalidate();
+            return;
+        }
+
+        PieDataSet dataSet = new PieDataSet(entries, "");
+        dataSet.setColors(colors);
+        dataSet.setSliceSpace(3f);
+        dataSet.setSelectionShift(8f);
+        dataSet.setValueTextColor(Color.WHITE);
+        dataSet.setValueTextSize(12f);
+
+        PieData data = new PieData(dataSet);
+        data.setValueFormatter(new PercentFormatter(pieChart));
+        
+        pieChart.setData(data);
+        pieChart.setCenterText("Total\n" + (incoming + outgoing + missed + rejected));
+        pieChart.invalidate();
     }
 
     private boolean checkPermission() {
@@ -89,7 +172,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateUI() {
-        // Update counts with animation feel
+        // Update counts
         int incoming = callLogHelper.getIncomingCount();
         int outgoing = callLogHelper.getOutgoingCount();
         int missed = callLogHelper.getMissedCount();
@@ -101,6 +184,9 @@ public class MainActivity extends AppCompatActivity {
         tvMissed.setText(formatNumber(missed));
         tvRejected.setText(formatNumber(rejected));
         tvTotalCalls.setText(total + " calls");
+
+        // Update pie chart
+        updatePieChart(incoming, outgoing, missed, rejected);
 
         // Top 10 Callers with visual bars
         List<Map.Entry<String, Integer>> topCallers = callLogHelper.getTopCallers(10);

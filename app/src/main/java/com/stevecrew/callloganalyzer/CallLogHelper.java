@@ -93,9 +93,7 @@ public class CallLogHelper {
         Map<String, Integer> callerCount = new HashMap<>();
         
         for (CallLogEntry entry : allCalls) {
-            String key = entry.getNumber();
-            Integer current = callerCount.get(key);
-            callerCount.put(key, (current != null ? current : 0) + 1);
+            callerCount.compute(entry.getNumber(), (k, v) -> (v == null) ? 1 : v + 1);
         }
 
         List<Map.Entry<String, Integer>> sorted = new ArrayList<>(callerCount.entrySet());
@@ -109,9 +107,8 @@ public class CallLogHelper {
         Map<String, Long> callerDuration = new HashMap<>();
         
         for (CallLogEntry entry : allCalls) {
-            String key = entry.getNumber();
-            Long current = callerDuration.get(key);
-            callerDuration.put(key, (current != null ? current : 0L) + entry.getDuration());
+            long duration = entry.getDuration();
+            callerDuration.compute(entry.getNumber(), (k, v) -> (v == null) ? duration : v + duration);
         }
 
         List<Map.Entry<String, Long>> sorted = new ArrayList<>(callerDuration.entrySet());

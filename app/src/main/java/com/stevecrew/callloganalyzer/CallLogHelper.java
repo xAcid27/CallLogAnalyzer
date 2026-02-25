@@ -5,15 +5,14 @@ import android.database.Cursor;
 import android.provider.CallLog;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class CallLogHelper {
     
-    private Context context;
-    private List<CallLogEntry> allCalls;
+    private final Context context;
+    private final List<CallLogEntry> allCalls;
 
     public CallLogHelper(Context context) {
         this.context = context;
@@ -92,18 +91,15 @@ public class CallLogHelper {
     // Top 10 by call frequency
     public List<Map.Entry<String, Integer>> getTopCallers(int limit) {
         Map<String, Integer> callerCount = new HashMap<>();
-        Map<String, String> callerNames = new HashMap<>();
         
         for (CallLogEntry entry : allCalls) {
             String key = entry.getNumber();
-            callerCount.put(key, callerCount.getOrDefault(key, 0) + 1);
-            if (!entry.getContactName().isEmpty()) {
-                callerNames.put(key, entry.getContactName());
-            }
+            Integer current = callerCount.get(key);
+            callerCount.put(key, (current != null ? current : 0) + 1);
         }
 
         List<Map.Entry<String, Integer>> sorted = new ArrayList<>(callerCount.entrySet());
-        Collections.sort(sorted, (a, b) -> b.getValue().compareTo(a.getValue()));
+        sorted.sort((a, b) -> b.getValue().compareTo(a.getValue()));
         
         return sorted.subList(0, Math.min(limit, sorted.size()));
     }
@@ -114,11 +110,12 @@ public class CallLogHelper {
         
         for (CallLogEntry entry : allCalls) {
             String key = entry.getNumber();
-            callerDuration.put(key, callerDuration.getOrDefault(key, 0L) + entry.getDuration());
+            Long current = callerDuration.get(key);
+            callerDuration.put(key, (current != null ? current : 0L) + entry.getDuration());
         }
 
         List<Map.Entry<String, Long>> sorted = new ArrayList<>(callerDuration.entrySet());
-        Collections.sort(sorted, (a, b) -> b.getValue().compareTo(a.getValue()));
+        sorted.sort((a, b) -> b.getValue().compareTo(a.getValue()));
         
         return sorted.subList(0, Math.min(limit, sorted.size()));
     }

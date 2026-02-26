@@ -247,35 +247,31 @@ public class MainActivity extends AppCompatActivity {
         // Update pie chart
         updatePieChart(incoming, outgoing, missed, rejected);
 
-        // Top 10 Callers with visual bars
+        // Top 10 Callers - compact format
         List<Map.Entry<String, Integer>> topCallers = callLogHelper.getTopCallers(10);
         StringBuilder callerSb = new StringBuilder();
-        int maxCalls = topCallers.isEmpty() ? 1 : topCallers.get(0).getValue();
         int rank = 1;
         for (Map.Entry<String, Integer> entry : topCallers) {
             String name = callLogHelper.getContactNameForNumber(entry.getKey());
-            if (name.length() > 20) name = name.substring(0, 17) + "...";
+            if (name.length() > 18) name = name.substring(0, 15) + "...";
             int calls = entry.getValue();
-            String bar = generateBar(calls, maxCalls, 10);
-            callerSb.append(String.format(Locale.getDefault(), "%2d. %-20s %s %d\n", 
-                    rank, name, bar, calls));
+            callerSb.append(String.format(Locale.getDefault(), "%d. %s\n   %d Anrufe\n", 
+                    rank, name, calls));
             rank++;
         }
         tvTopCallers.setText(callerSb.toString().trim());
 
-        // Top 10 Duration with visual bars
+        // Top 10 Duration - compact format
         List<Map.Entry<String, Long>> topDuration = callLogHelper.getTopDuration(10);
         StringBuilder durationSb = new StringBuilder();
-        long maxDuration = topDuration.isEmpty() ? 1 : topDuration.get(0).getValue();
         rank = 1;
         for (Map.Entry<String, Long> entry : topDuration) {
             String name = callLogHelper.getContactNameForNumber(entry.getKey());
-            if (name.length() > 20) name = name.substring(0, 17) + "...";
+            if (name.length() > 18) name = name.substring(0, 15) + "...";
             long duration = entry.getValue();
-            String bar = generateBar((int)duration, (int)maxDuration, 8);
             String formattedDuration = formatDuration(duration);
-            durationSb.append(String.format(Locale.getDefault(), "%2d. %-20s %s %s\n", 
-                    rank, name, bar, formattedDuration));
+            durationSb.append(String.format(Locale.getDefault(), "%d. %s\n   %s\n", 
+                    rank, name, formattedDuration));
             rank++;
         }
         tvTopDuration.setText(durationSb.toString().trim());

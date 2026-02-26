@@ -409,33 +409,123 @@ public class MainActivity extends AppCompatActivity {
             calls.sort((a, b) -> Long.compare(b.getDuration(), a.getDuration()));
         }
         
-        SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault());
-        StringBuilder sb = new StringBuilder();
-        sb.append("📱 ").append(number).append("\n\n");
-        
+        // Calculate totals
+        int totalCalls = calls.size();
+        long totalDuration = 0;
+        int incoming = 0, outgoing = 0, missed = 0;
         for (CallLogEntry call : calls) {
-            String date = sdf.format(new Date(call.getTimestamp()));
-            String type = getCallTypeEmoji(call.getType());
-            String dur = formatDuration(call.getDuration());
-            sb.append(type).append(" ").append(date).append("\n");
-            sb.append("    Dauer: ").append(dur).append("\n\n");
+            totalDuration += call.getDuration();
+            switch (call.getType()) {
+                case CallLogEntry.TYPE_INCOMING: incoming++; break;
+                case CallLogEntry.TYPE_OUTGOING: outgoing++; break;
+                case CallLogEntry.TYPE_MISSED: missed++; break;
+            }
         }
+        
+        SimpleDateFormat sdfDate = new SimpleDateFormat("dd.MM.yyyy", Locale.getDefault());
+        SimpleDateFormat sdfTime = new SimpleDateFormat("HH:mm", Locale.getDefault());
+        
+        // Build the layout
+        LinearLayout mainLayout = new LinearLayout(this);
+        mainLayout.setOrientation(LinearLayout.VERTICAL);
+        mainLayout.setPadding(48, 24, 48, 24);
+        
+        // Header with number and summary
+        TextView headerText = new TextView(this);
+        headerText.setText("📱  " + number);
+        headerText.setTextColor(Color.parseColor("#B3B3B3"));
+        headerText.setTextSize(13);
+        mainLayout.addView(headerText);
+        
+        // Summary stats
+        TextView summaryText = new TextView(this);
+        String summary = String.format(Locale.getDefault(),
+            "\n📊 Gesamt: %d Anrufe  ·  %s\n" +
+            "     📥 %d  📤 %d  ❌ %d\n",
+            totalCalls, formatDuration(totalDuration),
+            incoming, outgoing, missed);
+        summaryText.setText(summary);
+        summaryText.setTextColor(Color.parseColor("#E0E0E0"));
+        summaryText.setTextSize(14);
+        summaryText.setPadding(0, 0, 0, 24);
+        mainLayout.addView(summaryText);
+        
+        // Divider
+        View divider = new View(this);
+        divider.setBackgroundColor(Color.parseColor("#404040"));
+        divider.setLayoutParams(new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 2));
+        mainLayout.addView(divider);
+        
+        // Call entries
+        int count = 0;
+        for (CallLogEntry call : calls) {
+            count++;
+            if (count > 50) {
+                TextView moreText = new TextView(this);
+                moreText.setText("\n... und " + (calls.size() - 50) + " weitere Anrufe");
+                moreText.setTextColor(Color.parseColor("#808080"));
+                moreText.setTextSize(13);
+                mainLayout.addView(moreText);
+                break;
+            }
+            
+            LinearLayout entryLayout = new LinearLayout(this);
+            entryLayout.setOrientation(LinearLayout.HORIZONTAL);
+            entryLayout.setPadding(0, 20, 0, 20);
+            
+            // Type emoji
+            TextView typeText = new TextView(this);
+            typeText.setText(getCallTypeEmoji(call.getType()));
+            typeText.setTextSize(18);
+            typeText.setPadding(0, 0, 24, 0);
+            entryLayout.addView(typeText);
+            
+            // Date and time
+            LinearLayout dateLayout = new LinearLayout(this);
+            dateLayout.setOrientation(LinearLayout.VERTICAL);
+            dateLayout.setLayoutParams(new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+            
+            TextView dateText = new TextView(this);
+            dateText.setText(sdfDate.format(new Date(call.getTimestamp())));
+            dateText.setTextColor(Color.parseColor("#E0E0E0"));
+            dateText.setTextSize(14);
+            dateLayout.addView(dateText);
+            
+            TextView timeText = new TextView(this);
+            timeText.setText(sdfTime.format(new Date(call.getTimestamp())));
+            timeText.setTextColor(Color.parseColor("#808080"));
+            timeText.setTextSize(12);
+            dateLayout.addView(timeText);
+            
+            entryLayout.addView(dateLayout);
+            
+            // Duration
+            TextView durationText = new TextView(this);
+            durationText.setText(formatDuration(call.getDuration()));
+            durationText.setTextColor(Color.parseColor("#4FC3F7"));
+            durationText.setTextSize(14);
+            durationText.setGravity(android.view.Gravity.END);
+            entryLayout.addView(durationText);
+            
+            mainLayout.addView(entryLayout);
+            
+            // Entry divider
+            View entryDivider = new View(this);
+            entryDivider.setBackgroundColor(Color.parseColor("#333333"));
+            entryDivider.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 1));
+            mainLayout.addView(entryDivider);
+        }
+        
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
+        scrollView.addView(mainLayout);
         
         AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.DarkDialogTheme);
         builder.setTitle(contactName);
-        
-        // Create scrollable text view
-        TextView textView = new TextView(this);
-        textView.setText(sb.toString().trim());
-        textView.setTextColor(Color.parseColor("#E0E0E0"));
-        textView.setPadding(48, 24, 48, 24);
-        textView.setTextSize(14);
-        
-        android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
-        scrollView.addView(textView);
-        
         builder.setView(scrollView);
-        builder.setPositiveButton("Nummer ausblenden", (dialog, which) -> {
+        builder.setPositiveButton("Ausblenden", (dialog, which) -> {
             blacklistManager.addNumber(number);
             callLogHelper.setTimePeriod(callLogHelper.getCurrentPeriod());
             updateUI();

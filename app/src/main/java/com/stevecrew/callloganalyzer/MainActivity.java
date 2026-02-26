@@ -247,30 +247,30 @@ public class MainActivity extends AppCompatActivity {
         // Update pie chart
         updatePieChart(incoming, outgoing, missed, rejected);
 
-        // Top 10 Callers - compact format
+        // Top 10 Callers - single line format
         List<Map.Entry<String, Integer>> topCallers = callLogHelper.getTopCallers(10);
         StringBuilder callerSb = new StringBuilder();
         int rank = 1;
         for (Map.Entry<String, Integer> entry : topCallers) {
             String name = callLogHelper.getContactNameForNumber(entry.getKey());
-            if (name.length() > 18) name = name.substring(0, 15) + "...";
+            if (name.length() > 20) name = name.substring(0, 17) + "...";
             int calls = entry.getValue();
-            callerSb.append(String.format(Locale.getDefault(), "%d. %s\n   %d Anrufe\n", 
+            callerSb.append(String.format(Locale.getDefault(), "%d. %s (%d)\n", 
                     rank, name, calls));
             rank++;
         }
         tvTopCallers.setText(callerSb.toString().trim());
 
-        // Top 10 Duration - compact format
+        // Top 10 Duration - single line format
         List<Map.Entry<String, Long>> topDuration = callLogHelper.getTopDuration(10);
         StringBuilder durationSb = new StringBuilder();
         rank = 1;
         for (Map.Entry<String, Long> entry : topDuration) {
             String name = callLogHelper.getContactNameForNumber(entry.getKey());
-            if (name.length() > 18) name = name.substring(0, 15) + "...";
+            if (name.length() > 20) name = name.substring(0, 17) + "...";
             long duration = entry.getValue();
             String formattedDuration = formatDuration(duration);
-            durationSb.append(String.format(Locale.getDefault(), "%d. %s\n   %s\n", 
+            durationSb.append(String.format(Locale.getDefault(), "%d. %s (%s)\n", 
                     rank, name, formattedDuration));
             rank++;
         }

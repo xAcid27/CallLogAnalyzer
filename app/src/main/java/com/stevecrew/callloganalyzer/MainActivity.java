@@ -1,6 +1,7 @@
 package com.stevecrew.callloganalyzer;
 
 import android.Manifest;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Bundle;
@@ -9,11 +10,14 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -35,11 +39,12 @@ public class MainActivity extends AppCompatActivity {
     
     private TextView tvIncoming, tvOutgoing, tvMissed, tvRejected;
     private TextView tvTopCallers, tvTopDuration, tvStatus, tvTotalCalls;
-    private Button btnExport;
+    private Button btnExport, btnBlacklist;
     private PieChart pieChart;
     private Spinner spinnerTimePeriod;
     
     private CallLogHelper callLogHelper;
+    private BlacklistManager blacklistManager;
     
     private final String[] timePeriodOptions = {
         "Alle Anrufe",
@@ -71,15 +76,19 @@ public class MainActivity extends AppCompatActivity {
         tvStatus = findViewById(R.id.tvStatus);
         tvTotalCalls = findViewById(R.id.tvTotalCalls);
         btnExport = findViewById(R.id.btnExport);
+        btnBlacklist = findViewById(R.id.btnBlacklist);
         pieChart = findViewById(R.id.pieChart);
         spinnerTimePeriod = findViewById(R.id.spinnerTimePeriod);
 
         setupPieChart();
         setupTimePeriodSpinner();
         
+        blacklistManager = new BlacklistManager(this);
         callLogHelper = new CallLogHelper(this);
+        callLogHelper.setBlacklistManager(blacklistManager);
 
         btnExport.setOnClickListener(v -> exportData());
+        btnBlacklist.setOnClickListener(v -> showBlacklistDialog());
 
         // Check permissions
         if (checkPermission()) {
@@ -333,5 +342,65 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Export failed", Toast.LENGTH_SHORT).show();
             tvStatus.setText("✗ Export failed");
         }
+    }
+
+    private void showBlacklistDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.DarkDialogTheme);
+        builder.setTitle("🚫 Nummern ausblenden");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(48, 24, 48, 8);
+
+        // Show current blacklist
+        java.util.Set<String> blacklisted = blacklistManager.getBlacklistedNumbers();
+        
+        TextView infoText = new TextView(this);
+        if (blacklisted.isEmpty()) {
+            infoText.setText("Keine Nummern ausgeblendet.");
+        } else {
+            StringBuilder sb = new StringBuilder("Ausgeblendet:\n");
+            for (String num : blacklisted) {
+                sb.append("• ").append(num).append("\n");
+            }
+            infoText.setText(sb.toString().trim());
+        }
+        infoText.setTextColor(Color.parseColor("#B3B3B3"));
+        infoText.setPadding(0, 0, 0, 24);
+        layout.addView(infoText);
+
+        // Input field for new number
+        EditText input = new EditText(this);
+        input.setHint("Nummer eingeben...");
+        input.setTextColor(Color.WHITE);
+        input.setHintTextColor(Color.parseColor("#808080"));
+        input.setBackgroundColor(Color.parseColor("#3D3D3D"));
+        input.setPadding(24, 24, 24, 24);
+        layout.addView(input);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Hinzufügen", (dialog, which) -> {
+            String number = input.getText().toString().trim();
+            if (!number.isEmpty()) {
+                blacklistManager.addNumber(number);
+                callLogHelper.setTimePeriod(callLogHelper.getCurrentPeriod()); // Re-apply filter
+                updateUI();
+                Toast.makeText(this, "✓ " + number + " ausgeblendet", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton("Abbrechen", null);
+
+        if (!blacklisted.isEmpty()) {
+            builder.setNeutralButton("Alle löschen", (dialog, which) -> {
+                blacklistManager.clear();
+                callLogHelper.setTimePeriod(callLogHelper.getCurrentPeriod()); // Re-apply filter
+                updateUI();
+                Toast.makeText(this, "✓ Filter zurückgesetzt", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        builder.show();
     }
 }

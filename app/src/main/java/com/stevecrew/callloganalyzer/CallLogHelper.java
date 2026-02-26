@@ -23,11 +23,21 @@ public class CallLogHelper {
     private final List<CallLogEntry> allCalls;
     private final List<CallLogEntry> filteredCalls;
     private int currentPeriod = PERIOD_ALL;
+    private BlacklistManager blacklistManager;
 
     public CallLogHelper(Context context) {
         this.context = context;
         this.allCalls = new ArrayList<>();
         this.filteredCalls = new ArrayList<>();
+        this.blacklistManager = new BlacklistManager(context);
+    }
+    
+    public void setBlacklistManager(BlacklistManager manager) {
+        this.blacklistManager = manager;
+    }
+    
+    public BlacklistManager getBlacklistManager() {
+        return blacklistManager;
     }
 
     public void loadCallLog() {
@@ -70,35 +80,43 @@ public class CallLogHelper {
         applyFilter();
     }
     
+    public int getCurrentPeriod() {
+        return currentPeriod;
+    }
+    
     private void applyFilter() {
         filteredCalls.clear();
         
-        if (currentPeriod == PERIOD_ALL) {
-            filteredCalls.addAll(allCalls);
-            return;
-        }
-        
-        long cutoffTime = System.currentTimeMillis();
-        switch (currentPeriod) {
-            case PERIOD_7_DAYS:
-                cutoffTime -= 7L * 24 * 60 * 60 * 1000;
-                break;
-            case PERIOD_30_DAYS:
-                cutoffTime -= 30L * 24 * 60 * 60 * 1000;
-                break;
-            case PERIOD_3_MONTHS:
-                cutoffTime -= 90L * 24 * 60 * 60 * 1000;
-                break;
-            case PERIOD_6_MONTHS:
-                cutoffTime -= 180L * 24 * 60 * 60 * 1000;
-                break;
-            case PERIOD_1_YEAR:
-                cutoffTime -= 365L * 24 * 60 * 60 * 1000;
-                break;
+        long cutoffTime = 0;
+        if (currentPeriod != PERIOD_ALL) {
+            cutoffTime = System.currentTimeMillis();
+            switch (currentPeriod) {
+                case PERIOD_7_DAYS:
+                    cutoffTime -= 7L * 24 * 60 * 60 * 1000;
+                    break;
+                case PERIOD_30_DAYS:
+                    cutoffTime -= 30L * 24 * 60 * 60 * 1000;
+                    break;
+                case PERIOD_3_MONTHS:
+                    cutoffTime -= 90L * 24 * 60 * 60 * 1000;
+                    break;
+                case PERIOD_6_MONTHS:
+                    cutoffTime -= 180L * 24 * 60 * 60 * 1000;
+                    break;
+                case PERIOD_1_YEAR:
+                    cutoffTime -= 365L * 24 * 60 * 60 * 1000;
+                    break;
+            }
         }
         
         for (CallLogEntry entry : allCalls) {
-            if (entry.getTimestamp() >= cutoffTime) {
+            // Skip blacklisted numbers
+            if (blacklistManager != null && blacklistManager.isBlacklisted(entry.getNumber())) {
+                continue;
+            }
+            
+            // Apply time filter
+            if (currentPeriod == PERIOD_ALL || entry.getTimestamp() >= cutoffTime) {
                 filteredCalls.add(entry);
             }
         }

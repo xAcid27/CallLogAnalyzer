@@ -12,4 +12,11 @@
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
     </style>
+    
+    <style name="DarkDialogTheme" parent="Theme.Material3.Dark.Dialog.Alert">
+        <item name="android:background">@color/card_dark</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="colorPrimary">@color/accent_blue</item>
+    </style>
 </resources>

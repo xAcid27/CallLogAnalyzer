@@ -376,19 +376,44 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Export Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnExport"
+        <!-- Button Row -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:text="Export to CSV"
-            android:textSize="16sp"
-            android:textAllCaps="false"
-            app:icon="@android:drawable/ic_menu_save"
-            app:iconGravity="textStart"
-            app:iconPadding="8dp"
-            app:cornerRadius="16dp"
-            app:backgroundTint="@color/accent_blue"/>
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            
+            <!-- Export Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnExport"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:text="Export"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                app:icon="@android:drawable/ic_menu_save"
+                app:iconGravity="textStart"
+                app:iconPadding="4dp"
+                app:cornerRadius="16dp"
+                app:backgroundTint="@color/accent_blue"/>
+                
+            <!-- Blacklist Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnBlacklist"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:text="Filter"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                app:icon="@android:drawable/ic_menu_close_clear_cancel"
+                app:iconGravity="textStart"
+                app:iconPadding="4dp"
+                app:cornerRadius="16dp"
+                app:backgroundTint="#6B6B6B"/>
+        </LinearLayout>
 
         <!-- Status -->
         <TextView

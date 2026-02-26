@@ -28,7 +28,9 @@ import com.github.mikephil.charting.data.PieDataSet;
 import com.github.mikephil.charting.data.PieEntry;
 import com.github.mikephil.charting.formatter.PercentFormatter;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -45,6 +47,10 @@ public class MainActivity extends AppCompatActivity {
     
     private CallLogHelper callLogHelper;
     private BlacklistManager blacklistManager;
+    
+    // Store top data for click handlers
+    private List<Map.Entry<String, Integer>> lastTopCallers;
+    private List<Map.Entry<String, Long>> lastTopDuration;
     
     private final String[] timePeriodOptions = {
         "Alle Anrufe",
@@ -257,10 +263,10 @@ public class MainActivity extends AppCompatActivity {
         updatePieChart(incoming, outgoing, missed, rejected);
 
         // Top 10 Callers - pretty format with medals
-        List<Map.Entry<String, Integer>> topCallers = callLogHelper.getTopCallers(10);
+        lastTopCallers = callLogHelper.getTopCallers(10);
         StringBuilder callerSb = new StringBuilder();
         int rank = 1;
-        for (Map.Entry<String, Integer> entry : topCallers) {
+        for (Map.Entry<String, Integer> entry : lastTopCallers) {
             String name = callLogHelper.getContactNameForNumber(entry.getKey());
             if (name.length() > 16) name = name.substring(0, 13) + "...";
             int calls = entry.getValue();
@@ -270,12 +276,13 @@ public class MainActivity extends AppCompatActivity {
             rank++;
         }
         tvTopCallers.setText(callerSb.toString().trim());
+        tvTopCallers.setOnClickListener(v -> showTopCallersDetail());
 
         // Top 10 Duration - pretty format with medals
-        List<Map.Entry<String, Long>> topDuration = callLogHelper.getTopDuration(10);
+        lastTopDuration = callLogHelper.getTopDuration(10);
         StringBuilder durationSb = new StringBuilder();
         rank = 1;
-        for (Map.Entry<String, Long> entry : topDuration) {
+        for (Map.Entry<String, Long> entry : lastTopDuration) {
             String name = callLogHelper.getContactNameForNumber(entry.getKey());
             if (name.length() > 16) name = name.substring(0, 13) + "...";
             long duration = entry.getValue();
@@ -286,6 +293,7 @@ public class MainActivity extends AppCompatActivity {
             rank++;
         }
         tvTopDuration.setText(durationSb.toString().trim());
+        tvTopDuration.setOnClickListener(v -> showTopDurationDetail());
 
         tvStatus.setText("✓ Last updated just now");
     }
@@ -341,6 +349,109 @@ public class MainActivity extends AppCompatActivity {
         } else {
             Toast.makeText(this, "Export failed", Toast.LENGTH_SHORT).show();
             tvStatus.setText("✗ Export failed");
+        }
+    }
+
+    private void showTopCallersDetail() {
+        if (lastTopCallers == null || lastTopCallers.isEmpty()) return;
+        
+        String[] items = new String[lastTopCallers.size()];
+        int i = 0;
+        for (Map.Entry<String, Integer> entry : lastTopCallers) {
+            String name = callLogHelper.getContactNameForNumber(entry.getKey());
+            items[i] = getRankPrefix(i + 1) + " " + name + " (" + entry.getValue() + " Anrufe)";
+            i++;
+        }
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.DarkDialogTheme);
+        builder.setTitle("📞 Top Callers - Details");
+        builder.setItems(items, (dialog, which) -> {
+            String number = lastTopCallers.get(which).getKey();
+            showCallDetailsForNumber(number, "calls");
+        });
+        builder.setNegativeButton("Schließen", null);
+        builder.show();
+    }
+    
+    private void showTopDurationDetail() {
+        if (lastTopDuration == null || lastTopDuration.isEmpty()) return;
+        
+        String[] items = new String[lastTopDuration.size()];
+        int i = 0;
+        for (Map.Entry<String, Long> entry : lastTopDuration) {
+            String name = callLogHelper.getContactNameForNumber(entry.getKey());
+            items[i] = getRankPrefix(i + 1) + " " + name + " (" + formatDuration(entry.getValue()) + ")";
+            i++;
+        }
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.DarkDialogTheme);
+        builder.setTitle("⏱️ Longest Calls - Details");
+        builder.setItems(items, (dialog, which) -> {
+            String number = lastTopDuration.get(which).getKey();
+            showCallDetailsForNumber(number, "duration");
+        });
+        builder.setNegativeButton("Schließen", null);
+        builder.show();
+    }
+    
+    private void showCallDetailsForNumber(String number, String sortBy) {
+        String contactName = callLogHelper.getContactNameForNumber(number);
+        List<CallLogEntry> calls = new ArrayList<>();
+        
+        for (CallLogEntry entry : callLogHelper.getAllCalls()) {
+            if (entry.getNumber().equals(number)) {
+                calls.add(entry);
+            }
+        }
+        
+        // Sort by duration if requested
+        if (sortBy.equals("duration")) {
+            calls.sort((a, b) -> Long.compare(b.getDuration(), a.getDuration()));
+        }
+        
+        SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault());
+        StringBuilder sb = new StringBuilder();
+        sb.append("📱 ").append(number).append("\n\n");
+        
+        for (CallLogEntry call : calls) {
+            String date = sdf.format(new Date(call.getTimestamp()));
+            String type = getCallTypeEmoji(call.getType());
+            String dur = formatDuration(call.getDuration());
+            sb.append(type).append(" ").append(date).append("\n");
+            sb.append("    Dauer: ").append(dur).append("\n\n");
+        }
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.DarkDialogTheme);
+        builder.setTitle(contactName);
+        
+        // Create scrollable text view
+        TextView textView = new TextView(this);
+        textView.setText(sb.toString().trim());
+        textView.setTextColor(Color.parseColor("#E0E0E0"));
+        textView.setPadding(48, 24, 48, 24);
+        textView.setTextSize(14);
+        
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
+        scrollView.addView(textView);
+        
+        builder.setView(scrollView);
+        builder.setPositiveButton("Nummer ausblenden", (dialog, which) -> {
+            blacklistManager.addNumber(number);
+            callLogHelper.setTimePeriod(callLogHelper.getCurrentPeriod());
+            updateUI();
+            Toast.makeText(this, "✓ " + number + " ausgeblendet", Toast.LENGTH_SHORT).show();
+        });
+        builder.setNegativeButton("Schließen", null);
+        builder.show();
+    }
+    
+    private String getCallTypeEmoji(int type) {
+        switch (type) {
+            case CallLogEntry.TYPE_INCOMING: return "📥";
+            case CallLogEntry.TYPE_OUTGOING: return "📤";
+            case CallLogEntry.TYPE_MISSED: return "❌";
+            case CallLogEntry.TYPE_REJECTED: return "🚫";
+            default: return "📞";
         }
     }
 

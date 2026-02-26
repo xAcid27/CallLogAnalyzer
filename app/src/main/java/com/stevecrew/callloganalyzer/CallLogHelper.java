@@ -19,6 +19,13 @@ public class CallLogHelper {
     public static final int PERIOD_6_MONTHS = 4;
     public static final int PERIOD_1_YEAR = 5;
     
+    // Numbers that should always count as outgoing
+    private static final String[] ALWAYS_OUTGOING = {
+        "+49355691034",
+        "49355691034",
+        "0355691034"
+    };
+    
     private final Context context;
     private final List<CallLogEntry> allCalls;
     private final List<CallLogEntry> filteredCalls;
@@ -84,6 +91,23 @@ public class CallLogHelper {
         return currentPeriod;
     }
     
+    private boolean isAlwaysOutgoing(String number) {
+        String normalized = number.replaceAll("[^0-9+]", "");
+        for (String outgoingNum : ALWAYS_OUTGOING) {
+            if (normalized.contains(outgoingNum) || outgoingNum.contains(normalized)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    private int getEffectiveType(CallLogEntry entry) {
+        if (isAlwaysOutgoing(entry.getNumber())) {
+            return CallLogEntry.TYPE_OUTGOING;
+        }
+        return entry.getType();
+    }
+    
     private void applyFilter() {
         filteredCalls.clear();
         
@@ -133,7 +157,7 @@ public class CallLogHelper {
     public int getIncomingCount() {
         int count = 0;
         for (CallLogEntry entry : filteredCalls) {
-            if (entry.getType() == CallLogEntry.TYPE_INCOMING) count++;
+            if (getEffectiveType(entry) == CallLogEntry.TYPE_INCOMING) count++;
         }
         return count;
     }
@@ -141,7 +165,7 @@ public class CallLogHelper {
     public int getOutgoingCount() {
         int count = 0;
         for (CallLogEntry entry : filteredCalls) {
-            if (entry.getType() == CallLogEntry.TYPE_OUTGOING) count++;
+            if (getEffectiveType(entry) == CallLogEntry.TYPE_OUTGOING) count++;
         }
         return count;
     }
@@ -149,7 +173,7 @@ public class CallLogHelper {
     public int getMissedCount() {
         int count = 0;
         for (CallLogEntry entry : filteredCalls) {
-            if (entry.getType() == CallLogEntry.TYPE_MISSED) count++;
+            if (getEffectiveType(entry) == CallLogEntry.TYPE_MISSED) count++;
         }
         return count;
     }
@@ -157,7 +181,7 @@ public class CallLogHelper {
     public int getRejectedCount() {
         int count = 0;
         for (CallLogEntry entry : filteredCalls) {
-            if (entry.getType() == CallLogEntry.TYPE_REJECTED) count++;
+            if (getEffectiveType(entry) == CallLogEntry.TYPE_REJECTED) count++;
         }
         return count;
     }

@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -16,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -105,13 +105,27 @@ public class AllCallsFragment extends Fragment {
                 holder.tvNumber.setVisibility(View.GONE);
             }
             
-            // Type emoji
+            // Type emoji and color indicator
             holder.tvType.setText(getCallTypeEmoji(call.getType()));
+            holder.viewTypeIndicator.setBackgroundColor(getCallTypeColor(call.getType()));
             
-            // Date and time
+            // Date and time - smart formatting
             Date date = new Date(call.getTimestamp());
-            holder.tvDate.setText(sdfDate.format(date));
-            holder.tvTime.setText(sdfTime.format(date));
+            Calendar callCal = Calendar.getInstance();
+            callCal.setTime(date);
+            Calendar todayCal = Calendar.getInstance();
+            
+            if (isSameDay(callCal, todayCal)) {
+                holder.tvDate.setText("Heute");
+            } else {
+                todayCal.add(Calendar.DAY_OF_YEAR, -1);
+                if (isSameDay(callCal, todayCal)) {
+                    holder.tvDate.setText("Gestern");
+                } else {
+                    holder.tvDate.setText(sdfDate.format(date));
+                }
+            }
+            holder.tvTime.setText(" " + sdfTime.format(date));
             
             // Duration
             holder.tvDuration.setText(formatDuration(call.getDuration()));
@@ -123,6 +137,21 @@ public class AllCallsFragment extends Fragment {
                 }
             });
         }
+        
+        private boolean isSameDay(Calendar cal1, Calendar cal2) {
+            return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+                   cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR);
+        }
+        
+        private int getCallTypeColor(int type) {
+            switch (type) {
+                case CallLogEntry.TYPE_INCOMING: return Color.parseColor("#2E7D32"); // Green
+                case CallLogEntry.TYPE_OUTGOING: return Color.parseColor("#1565C0"); // Blue
+                case CallLogEntry.TYPE_MISSED: return Color.parseColor("#EF6C00"); // Orange
+                case CallLogEntry.TYPE_REJECTED: return Color.parseColor("#C62828"); // Red
+                default: return Color.parseColor("#808080");
+            }
+        }
 
         @Override
         public int getItemCount() {
@@ -130,10 +159,12 @@ public class AllCallsFragment extends Fragment {
         }
 
         class CallViewHolder extends RecyclerView.ViewHolder {
+            View viewTypeIndicator;
             TextView tvType, tvName, tvNumber, tvDate, tvTime, tvDuration;
 
             CallViewHolder(@NonNull View itemView) {
                 super(itemView);
+                viewTypeIndicator = itemView.findViewById(R.id.viewTypeIndicator);
                 tvType = itemView.findViewById(R.id.tvType);
                 tvName = itemView.findViewById(R.id.tvName);
                 tvNumber = itemView.findViewById(R.id.tvNumber);

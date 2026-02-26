@@ -1,95 +1,104 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView 
+<LinearLayout 
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="8dp"
-    android:layout_marginVertical="4dp"
-    app:cardCornerRadius="12dp"
-    app:cardBackgroundColor="@color/card_dark"
-    app:cardElevation="0dp"
-    app:strokeWidth="0dp">
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="20dp"
+    android:paddingVertical="14dp"
+    android:background="?attr/selectableItemBackground">
 
+    <!-- Type Indicator -->
+    <View
+        android:id="@+id/viewTypeIndicator"
+        android:layout_width="4dp"
+        android:layout_height="40dp"
+        android:background="#2E7D32"
+        android:layout_marginEnd="16dp"/>
+
+    <!-- Type Emoji -->
+    <TextView
+        android:id="@+id/tvType"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:gravity="center"
+        android:text="📥"
+        android:textSize="20sp"
+        android:background="@drawable/circle_type_bg"
+        android:layout_marginEnd="14dp"/>
+
+    <!-- Name and Number -->
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="16dp">
+        android:layout_weight="1"
+        android:orientation="vertical">
 
-        <!-- Type Emoji -->
         <TextView
-            android:id="@+id/tvType"
+            android:id="@+id/tvName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="📥"
-            android:textSize="24sp"
-            android:layout_marginEnd="16dp"/>
+            android:text="Max Mustermann"
+            android:textSize="15sp"
+            android:textColor="@color/text_primary"
+            android:maxLines="1"
+            android:ellipsize="end"/>
 
-        <!-- Name and Number -->
-        <LinearLayout
-            android:layout_width="0dp"
+        <TextView
+            android:id="@+id/tvNumber"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:text="+49 123 456789"
+            android:textSize="12sp"
+            android:textColor="@color/text_secondary"
+            android:maxLines="1"
+            android:layout_marginTop="2dp"
+            android:visibility="gone"/>
 
-            <TextView
-                android:id="@+id/tvName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Max Mustermann"
-                android:textSize="16sp"
-                android:textColor="@color/text_primary"
-                android:maxLines="1"
-                android:ellipsize="end"/>
+    </LinearLayout>
 
-            <TextView
-                android:id="@+id/tvNumber"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="+49 123 456789"
-                android:textSize="12sp"
-                android:textColor="@color/text_secondary"
-                android:maxLines="1"
-                android:visibility="gone"/>
+    <!-- Date, Time and Duration -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="end"
+        android:layout_marginStart="12dp">
 
-        </LinearLayout>
-
-        <!-- Date, Time and Duration -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="end">
-
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            
             <TextView
                 android:id="@+id/tvDate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="26.02.2026"
+                android:text="26.02."
                 android:textSize="13sp"
-                android:textColor="@color/text_primary"/>
+                android:textColor="@color/text_secondary"/>
 
             <TextView
                 android:id="@+id/tvTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="14:32"
-                android:textSize="11sp"
+                android:text=" 14:32"
+                android:textSize="13sp"
                 android:textColor="@color/text_secondary"/>
-
-            <TextView
-                android:id="@+id/tvDuration"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="5m 23s"
-                android:textSize="12sp"
-                android:textColor="#4FC3F7"
-                android:layout_marginTop="4dp"/>
-
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvDuration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="5m 23s"
+            android:textSize="14sp"
+            android:textColor="#4FC3F7"
+            android:textStyle="bold"
+            android:layout_marginTop="2dp"/>
 
     </LinearLayout>
 
-</com.google.android.material.card.MaterialCardView>
+</LinearLayout>

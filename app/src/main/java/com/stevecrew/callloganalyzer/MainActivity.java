@@ -15,7 +15,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
-import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.tabs.TabLayout;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -45,31 +45,35 @@ public class MainActivity extends AppCompatActivity {
         overviewFragment = new OverviewFragment();
         allCallsFragment = new AllCallsFragment();
 
-        BottomNavigationView bottomNav = findViewById(R.id.bottomNavigation);
-        bottomNav.setOnItemSelectedListener(item -> {
-            Fragment fragment = null;
-            int itemId = item.getItemId();
-            
-            if (itemId == R.id.nav_overview) {
-                fragment = overviewFragment;
-            } else if (itemId == R.id.nav_all_calls) {
-                fragment = allCallsFragment;
-            }
-            
-            if (fragment != null) {
+        TabLayout tabLayout = findViewById(R.id.tabLayout);
+        tabLayout.addTab(tabLayout.newTab().setText("📊 Übersicht"));
+        tabLayout.addTab(tabLayout.newTab().setText("📋 Alle Anrufe"));
+        
+        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                Fragment fragment = tab.getPosition() == 0 ? overviewFragment : allCallsFragment;
                 getSupportFragmentManager()
                     .beginTransaction()
                     .replace(R.id.fragmentContainer, fragment)
                     .commit();
             }
-            return true;
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {}
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {}
         });
 
         // Check permissions
         if (checkPermission()) {
             loadData();
             // Show overview by default
-            bottomNav.setSelectedItemId(R.id.nav_overview);
+            getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.fragmentContainer, overviewFragment)
+                .commit();
         } else {
             requestPermission();
         }
@@ -97,8 +101,10 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == PERMISSION_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 loadData();
-                BottomNavigationView bottomNav = findViewById(R.id.bottomNavigation);
-                bottomNav.setSelectedItemId(R.id.nav_overview);
+                getSupportFragmentManager()
+                    .beginTransaction()
+                    .replace(R.id.fragmentContainer, overviewFragment)
+                    .commit();
             } else {
                 Toast.makeText(this, "Permission denied. Cannot read call log.", Toast.LENGTH_LONG).show();
             }

@@ -247,31 +247,33 @@ public class MainActivity extends AppCompatActivity {
         // Update pie chart
         updatePieChart(incoming, outgoing, missed, rejected);
 
-        // Top 10 Callers - single line format
+        // Top 10 Callers - pretty format with medals
         List<Map.Entry<String, Integer>> topCallers = callLogHelper.getTopCallers(10);
         StringBuilder callerSb = new StringBuilder();
         int rank = 1;
         for (Map.Entry<String, Integer> entry : topCallers) {
             String name = callLogHelper.getContactNameForNumber(entry.getKey());
-            if (name.length() > 20) name = name.substring(0, 17) + "...";
+            if (name.length() > 16) name = name.substring(0, 13) + "...";
             int calls = entry.getValue();
-            callerSb.append(String.format(Locale.getDefault(), "%d. %s (%d)\n", 
-                    rank, name, calls));
+            String prefix = getRankPrefix(rank);
+            callerSb.append(String.format(Locale.getDefault(), "%s %s  ·  %d\n", 
+                    prefix, name, calls));
             rank++;
         }
         tvTopCallers.setText(callerSb.toString().trim());
 
-        // Top 10 Duration - single line format
+        // Top 10 Duration - pretty format with medals
         List<Map.Entry<String, Long>> topDuration = callLogHelper.getTopDuration(10);
         StringBuilder durationSb = new StringBuilder();
         rank = 1;
         for (Map.Entry<String, Long> entry : topDuration) {
             String name = callLogHelper.getContactNameForNumber(entry.getKey());
-            if (name.length() > 20) name = name.substring(0, 17) + "...";
+            if (name.length() > 16) name = name.substring(0, 13) + "...";
             long duration = entry.getValue();
             String formattedDuration = formatDuration(duration);
-            durationSb.append(String.format(Locale.getDefault(), "%d. %s (%s)\n", 
-                    rank, name, formattedDuration));
+            String prefix = getRankPrefix(rank);
+            durationSb.append(String.format(Locale.getDefault(), "%s %s  ·  %s\n", 
+                    prefix, name, formattedDuration));
             rank++;
         }
         tvTopDuration.setText(durationSb.toString().trim());
@@ -284,6 +286,15 @@ public class MainActivity extends AppCompatActivity {
             return String.format(Locale.getDefault(), "%.1fk", num / 1000.0);
         }
         return String.valueOf(num);
+    }
+
+    private String getRankPrefix(int rank) {
+        switch (rank) {
+            case 1: return "🥇";
+            case 2: return "🥈";
+            case 3: return "🥉";
+            default: return String.format(Locale.getDefault(), "%2d.", rank);
+        }
     }
 
     private String generateBar(int value, int max, int barLength) {

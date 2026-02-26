@@ -324,10 +324,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Loading..."
-                    android:textSize="14sp"
+                    android:textSize="15sp"
                     android:textColor="@color/text_secondary"
-                    android:lineSpacingExtra="8dp"
-                    android:fontFamily="monospace"/>
+                    android:lineSpacingExtra="6dp"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -371,10 +370,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Loading..."
-                    android:textSize="14sp"
+                    android:textSize="15sp"
                     android:textColor="@color/text_secondary"
-                    android:lineSpacingExtra="8dp"
-                    android:fontFamily="monospace"/>
+                    android:lineSpacingExtra="6dp"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

@@ -4,7 +4,12 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -32,8 +37,18 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvTopCallers, tvTopDuration, tvStatus, tvTotalCalls;
     private Button btnExport;
     private PieChart pieChart;
+    private Spinner spinnerTimePeriod;
     
     private CallLogHelper callLogHelper;
+    
+    private final String[] timePeriodOptions = {
+        "Alle Anrufe",
+        "Letzte 7 Tage",
+        "Letzte 30 Tage",
+        "Letzte 3 Monate",
+        "Letzte 6 Monate",
+        "Letztes Jahr"
+    };
 
     // Colors matching our theme
     private final int COLOR_GREEN = Color.parseColor("#2E7D32");
@@ -57,8 +72,10 @@ public class MainActivity extends AppCompatActivity {
         tvTotalCalls = findViewById(R.id.tvTotalCalls);
         btnExport = findViewById(R.id.btnExport);
         pieChart = findViewById(R.id.pieChart);
+        spinnerTimePeriod = findViewById(R.id.spinnerTimePeriod);
 
         setupPieChart();
+        setupTimePeriodSpinner();
         
         callLogHelper = new CallLogHelper(this);
 
@@ -92,6 +109,48 @@ public class MainActivity extends AppCompatActivity {
         pieChart.setEntryLabelColor(Color.WHITE);
         pieChart.setEntryLabelTextSize(11f);
         pieChart.animateY(800);
+    }
+
+    private void setupTimePeriodSpinner() {
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, 
+                android.R.layout.simple_spinner_item, timePeriodOptions) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                TextView textView = (TextView) view;
+                textView.setTextColor(Color.WHITE);
+                textView.setTextSize(15);
+                return view;
+            }
+
+            @Override
+            public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                View view = super.getDropDownView(position, convertView, parent);
+                TextView textView = (TextView) view;
+                textView.setTextColor(Color.WHITE);
+                textView.setBackgroundColor(Color.parseColor("#3D3D3D"));
+                textView.setPadding(24, 24, 24, 24);
+                return view;
+            }
+        };
+        
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerTimePeriod.setAdapter(adapter);
+        
+        spinnerTimePeriod.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (callLogHelper != null) {
+                    callLogHelper.setTimePeriod(position);
+                    updateUI();
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // Do nothing
+            }
+        });
     }
 
     private void updatePieChart(int incoming, int outgoing, int missed, int rejected) {

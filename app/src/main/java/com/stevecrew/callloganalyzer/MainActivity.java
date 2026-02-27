@@ -112,21 +112,26 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadData() {
+        // Initiales Laden der Anrufdaten aus der Datenbank
         callLogHelper.loadCallLog();
         
-        // Start observing call log changes for live updates
+        // === Live-Updates einrichten ===
+        // Callback registrieren: Wird aufgerufen wenn ein neuer Anruf ins Log kommt
         callLogHelper.setOnCallLogChangedListener(() -> {
-            // Update UI when call log changes
+            // Beide Tabs aktualisieren damit Stats & Liste aktuell sind
             if (overviewFragment != null) overviewFragment.updateUI();
             if (allCallsFragment != null) allCallsFragment.updateUI();
         });
+        
+        // Observer starten - ab jetzt werden Änderungen automatisch erkannt
         callLogHelper.startObserving();
     }
     
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        // Stop observing to prevent memory leaks
+        // Observer stoppen um Memory Leaks zu vermeiden
+        // (Observer hält Referenz auf Context → muss aufgeräumt werden)
         if (callLogHelper != null) {
             callLogHelper.stopObserving();
         }

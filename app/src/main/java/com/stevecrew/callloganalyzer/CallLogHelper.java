@@ -15,7 +15,10 @@ import java.util.Map;
 
 public class CallLogHelper {
     
-    // Callback interface for call log changes
+    /**
+     * Callback-Interface für Änderungen im Anrufprotokoll.
+     * Wird aufgerufen wenn ein neuer Anruf hinzukommt oder sich das Log ändert.
+     */
     public interface OnCallLogChangedListener {
         void onCallLogChanged();
     }
@@ -41,9 +44,12 @@ public class CallLogHelper {
     private int currentPeriod = PERIOD_ALL;
     private BlacklistManager blacklistManager;
     
-    // ContentObserver for live updates
+    // === Live-Update Komponenten ===
+    // Observer der auf Änderungen im CallLog reagiert (z.B. neuer Anruf)
     private CallLogObserver callLogObserver;
+    // Listener der benachrichtigt wird wenn sich Daten ändern (für UI-Updates)
     private OnCallLogChangedListener changeListener;
+    // Handler für Main-Thread um UI-Updates sicher auszuführen
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public CallLogHelper(Context context) {
@@ -54,18 +60,28 @@ public class CallLogHelper {
     }
     
     /**
-     * Set a listener to be notified when the call log changes
+     * Setzt den Listener der bei Änderungen im Anrufprotokoll benachrichtigt wird.
+     * Typischerweise wird hier die UI-Update-Logik übergeben.
+     * 
+     * @param listener Callback der bei Änderungen aufgerufen wird
      */
     public void setOnCallLogChangedListener(OnCallLogChangedListener listener) {
         this.changeListener = listener;
     }
     
     /**
-     * Start observing call log changes
+     * Startet die Überwachung des Anrufprotokolls.
+     * 
+     * Registriert einen ContentObserver auf CallLog.Calls.CONTENT_URI.
+     * Ab jetzt wird bei jedem neuen Anruf (eingehend/ausgehend/verpasst)
+     * automatisch onChange() aufgerufen → Daten neu laden → UI updaten.
+     * 
+     * Aufruf: Nach Permission-Grant in MainActivity.loadData()
      */
     public void startObserving() {
         if (callLogObserver == null) {
             callLogObserver = new CallLogObserver(mainHandler);
+            // true = auch bei Änderungen in Unter-URIs benachrichtigen
             context.getContentResolver().registerContentObserver(
                 CallLog.Calls.CONTENT_URI,
                 true,
@@ -75,7 +91,10 @@ public class CallLogHelper {
     }
     
     /**
-     * Stop observing call log changes (call in onDestroy)
+     * Stoppt die Überwachung des Anrufprotokolls.
+     * 
+     * WICHTIG: Muss in onDestroy() aufgerufen werden!
+     * Sonst: Memory Leak, da der Observer eine Referenz auf Context hält.
      */
     public void stopObserving() {
         if (callLogObserver != null) {
@@ -85,7 +104,13 @@ public class CallLogHelper {
     }
     
     /**
-     * ContentObserver that watches for call log changes
+     * ContentObserver der auf Änderungen im Android CallLog reagiert.
+     * 
+     * Funktionsweise:
+     * 1. Android erkennt Änderung im CallLog (neuer Anruf beendet)
+     * 2. ContentResolver benachrichtigt alle registrierten Observer
+     * 3. onChange() wird aufgerufen
+     * 4. Wir laden die Daten neu und informieren die UI
      */
     private class CallLogObserver extends ContentObserver {
         public CallLogObserver(Handler handler) {
@@ -94,15 +119,16 @@ public class CallLogHelper {
         
         @Override
         public void onChange(boolean selfChange) {
+            // Ältere Android-Versionen rufen diese Methode ohne URI auf
             onChange(selfChange, null);
         }
         
         @Override
         public void onChange(boolean selfChange, Uri uri) {
-            // Reload call log data
+            // Anrufliste neu aus der Datenbank laden
             loadCallLog();
             
-            // Notify listener on main thread
+            // UI auf dem Main-Thread aktualisieren (wichtig für Android!)
             if (changeListener != null) {
                 mainHandler.post(() -> changeListener.onCallLogChanged());
             }

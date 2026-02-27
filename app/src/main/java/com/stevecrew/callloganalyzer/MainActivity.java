@@ -113,6 +113,23 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadData() {
         callLogHelper.loadCallLog();
+        
+        // Start observing call log changes for live updates
+        callLogHelper.setOnCallLogChangedListener(() -> {
+            // Update UI when call log changes
+            if (overviewFragment != null) overviewFragment.updateUI();
+            if (allCallsFragment != null) allCallsFragment.updateUI();
+        });
+        callLogHelper.startObserving();
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Stop observing to prevent memory leaks
+        if (callLogHelper != null) {
+            callLogHelper.stopObserving();
+        }
     }
 
     public CallLogHelper getCallLogHelper() {

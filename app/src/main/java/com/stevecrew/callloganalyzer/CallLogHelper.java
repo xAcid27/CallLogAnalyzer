@@ -1,7 +1,11 @@
 package com.stevecrew.callloganalyzer;
 
 import android.content.Context;
+import android.database.ContentObserver;
 import android.database.Cursor;
+import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.CallLog;
 
 import java.util.ArrayList;
@@ -10,6 +14,11 @@ import java.util.List;
 import java.util.Map;
 
 public class CallLogHelper {
+    
+    // Callback interface for call log changes
+    public interface OnCallLogChangedListener {
+        void onCallLogChanged();
+    }
     
     // Time period constants
     public static final int PERIOD_ALL = 0;
@@ -31,12 +40,73 @@ public class CallLogHelper {
     private final List<CallLogEntry> filteredCalls;
     private int currentPeriod = PERIOD_ALL;
     private BlacklistManager blacklistManager;
+    
+    // ContentObserver for live updates
+    private CallLogObserver callLogObserver;
+    private OnCallLogChangedListener changeListener;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public CallLogHelper(Context context) {
         this.context = context;
         this.allCalls = new ArrayList<>();
         this.filteredCalls = new ArrayList<>();
         this.blacklistManager = new BlacklistManager(context);
+    }
+    
+    /**
+     * Set a listener to be notified when the call log changes
+     */
+    public void setOnCallLogChangedListener(OnCallLogChangedListener listener) {
+        this.changeListener = listener;
+    }
+    
+    /**
+     * Start observing call log changes
+     */
+    public void startObserving() {
+        if (callLogObserver == null) {
+            callLogObserver = new CallLogObserver(mainHandler);
+            context.getContentResolver().registerContentObserver(
+                CallLog.Calls.CONTENT_URI,
+                true,
+                callLogObserver
+            );
+        }
+    }
+    
+    /**
+     * Stop observing call log changes (call in onDestroy)
+     */
+    public void stopObserving() {
+        if (callLogObserver != null) {
+            context.getContentResolver().unregisterContentObserver(callLogObserver);
+            callLogObserver = null;
+        }
+    }
+    
+    /**
+     * ContentObserver that watches for call log changes
+     */
+    private class CallLogObserver extends ContentObserver {
+        public CallLogObserver(Handler handler) {
+            super(handler);
+        }
+        
+        @Override
+        public void onChange(boolean selfChange) {
+            onChange(selfChange, null);
+        }
+        
+        @Override
+        public void onChange(boolean selfChange, Uri uri) {
+            // Reload call log data
+            loadCallLog();
+            
+            // Notify listener on main thread
+            if (changeListener != null) {
+                mainHandler.post(() -> changeListener.onCallLogChanged());
+            }
+        }
     }
     
     public void setBlacklistManager(BlacklistManager manager) {

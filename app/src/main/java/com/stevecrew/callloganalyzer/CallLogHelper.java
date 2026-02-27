@@ -13,6 +13,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Zentrale Klasse für den Zugriff auf das Android Anrufprotokoll.
+ * 
+ * Hauptfunktionen:
+ * - Lädt Anrufdaten aus der Android CallLog-Datenbank
+ * - Filtert nach Zeitraum (7 Tage, 30 Tage, etc.)
+ * - Filtert ausgeblendete Nummern (Blacklist)
+ * - Berechnet Statistiken (Top Caller, längste Gespräche)
+ * - Beobachtet Änderungen für Live-Updates (ContentObserver)
+ * 
+ * Verwendung:
+ * 1. CallLogHelper erstellen mit Context
+ * 2. loadCallLog() aufrufen nach Permission-Grant
+ * 3. startObserving() für Live-Updates
+ * 4. stopObserving() in onDestroy() nicht vergessen!
+ */
 public class CallLogHelper {
     
     /**
@@ -23,25 +39,32 @@ public class CallLogHelper {
         void onCallLogChanged();
     }
     
-    // Time period constants
-    public static final int PERIOD_ALL = 0;
-    public static final int PERIOD_7_DAYS = 1;
-    public static final int PERIOD_30_DAYS = 2;
-    public static final int PERIOD_3_MONTHS = 3;
-    public static final int PERIOD_6_MONTHS = 4;
-    public static final int PERIOD_1_YEAR = 5;
+    // === Zeitraum-Konstanten für Filter ===
+    public static final int PERIOD_ALL = 0;       // Alle Anrufe
+    public static final int PERIOD_7_DAYS = 1;    // Letzte 7 Tage
+    public static final int PERIOD_30_DAYS = 2;   // Letzte 30 Tage
+    public static final int PERIOD_3_MONTHS = 3;  // Letzte 3 Monate
+    public static final int PERIOD_6_MONTHS = 4;  // Letzte 6 Monate
+    public static final int PERIOD_1_YEAR = 5;    // Letztes Jahr
     
-    // Numbers that should always count as outgoing
+    /**
+     * Nummern die IMMER als ausgehend gezählt werden sollen.
+     * 
+     * Hintergrund: Manche Nummern (z.B. Festnetz-Durchwahl) werden vom
+     * System manchmal falsch als "eingehend" markiert wenn man selbst
+     * von dieser Nummer anruft. Hier können solche Nummern korrigiert werden.
+     */
     private static final String[] ALWAYS_OUTGOING = {
         "+49355691034",
         "49355691034",
         "0355691034"
     };
     
+    // === Kern-Daten ===
     private final Context context;
-    private final List<CallLogEntry> allCalls;
-    private final List<CallLogEntry> filteredCalls;
-    private int currentPeriod = PERIOD_ALL;
+    private final List<CallLogEntry> allCalls;       // Alle geladenen Anrufe (ungefiltert)
+    private final List<CallLogEntry> filteredCalls;  // Gefilterte Anrufe (nach Zeit & Blacklist)
+    private int currentPeriod = PERIOD_ALL;          // Aktuell ausgewählter Zeitraum
     private BlacklistManager blacklistManager;
     
     // === Live-Update Komponenten ===
@@ -52,6 +75,11 @@ public class CallLogHelper {
     // Handler für Main-Thread um UI-Updates sicher auszuführen
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
+    /**
+     * Erstellt einen neuen CallLogHelper.
+     * 
+     * @param context Android Context (wird für ContentResolver benötigt)
+     */
     public CallLogHelper(Context context) {
         this.context = context;
         this.allCalls = new ArrayList<>();
@@ -135,6 +163,9 @@ public class CallLogHelper {
         }
     }
     
+    /**
+     * Setzt den BlacklistManager (für Dependency Injection).
+     */
     public void setBlacklistManager(BlacklistManager manager) {
         this.blacklistManager = manager;
     }
@@ -143,25 +174,37 @@ public class CallLogHelper {
         return blacklistManager;
     }
 
+    /**
+     * Lädt alle Anrufe aus der Android CallLog-Datenbank.
+     * 
+     * Verwendet ContentResolver um auf CallLog.Calls zuzugreifen.
+     * Benötigt READ_CALL_LOG Permission!
+     * 
+     * Nach dem Laden wird automatisch applyFilter() aufgerufen
+     * um Zeitraum- und Blacklist-Filter anzuwenden.
+     */
     public void loadCallLog() {
         allCalls.clear();
         
+        // Welche Spalten wollen wir laden?
         String[] projection = {
-            CallLog.Calls.NUMBER,
-            CallLog.Calls.CACHED_NAME,
-            CallLog.Calls.TYPE,
-            CallLog.Calls.DURATION,
-            CallLog.Calls.DATE
+            CallLog.Calls.NUMBER,       // Telefonnummer
+            CallLog.Calls.CACHED_NAME,  // Kontaktname (cached vom System)
+            CallLog.Calls.TYPE,         // Anruftyp (1=incoming, 2=outgoing, 3=missed, 5=rejected)
+            CallLog.Calls.DURATION,     // Dauer in Sekunden
+            CallLog.Calls.DATE          // Timestamp in Millisekunden
         };
 
+        // Query ausführen, sortiert nach Datum (neueste zuerst)
         Cursor cursor = context.getContentResolver().query(
             CallLog.Calls.CONTENT_URI,
             projection,
-            null,
-            null,
-            CallLog.Calls.DATE + " DESC"
+            null,    // selection (WHERE) - null = alle
+            null,    // selectionArgs
+            CallLog.Calls.DATE + " DESC"  // Sortierung
         );
 
+        // Cursor durchlaufen und CallLogEntry-Objekte erstellen
         if (cursor != null) {
             while (cursor.moveToNext()) {
                 String number = cursor.getString(cursor.getColumnIndexOrThrow(CallLog.Calls.NUMBER));
@@ -172,12 +215,18 @@ public class CallLogHelper {
 
                 allCalls.add(new CallLogEntry(number, name, type, duration, date));
             }
-            cursor.close();
+            cursor.close();  // Cursor immer schließen!
         }
         
+        // Filter anwenden (Zeitraum + Blacklist)
         applyFilter();
     }
     
+    /**
+     * Setzt den Zeitraum-Filter und wendet ihn an.
+     * 
+     * @param period Eine der PERIOD_* Konstanten
+     */
     public void setTimePeriod(int period) {
         this.currentPeriod = period;
         applyFilter();
@@ -187,6 +236,10 @@ public class CallLogHelper {
         return currentPeriod;
     }
     
+    /**
+     * Prüft ob eine Nummer zu den "immer ausgehend" Nummern gehört.
+     * Siehe ALWAYS_OUTGOING Array für Erklärung.
+     */
     private boolean isAlwaysOutgoing(String number) {
         String normalized = number.replaceAll("[^0-9+]", "");
         for (String outgoingNum : ALWAYS_OUTGOING) {
@@ -197,6 +250,10 @@ public class CallLogHelper {
         return false;
     }
     
+    /**
+     * Gibt den effektiven Anruftyp zurück.
+     * Korrigiert den Typ für Nummern in ALWAYS_OUTGOING.
+     */
     private int getEffectiveType(CallLogEntry entry) {
         if (isAlwaysOutgoing(entry.getNumber())) {
             return CallLogEntry.TYPE_OUTGOING;
@@ -204,52 +261,73 @@ public class CallLogHelper {
         return entry.getType();
     }
     
+    /**
+     * Wendet Zeitraum- und Blacklist-Filter auf die Anrufliste an.
+     * 
+     * Füllt filteredCalls mit allen Anrufen die:
+     * - Nicht auf der Blacklist stehen
+     * - Im ausgewählten Zeitraum liegen
+     */
     private void applyFilter() {
         filteredCalls.clear();
         
+        // Cutoff-Zeit berechnen basierend auf gewähltem Zeitraum
         long cutoffTime = 0;
         if (currentPeriod != PERIOD_ALL) {
             cutoffTime = System.currentTimeMillis();
             switch (currentPeriod) {
                 case PERIOD_7_DAYS:
-                    cutoffTime -= 7L * 24 * 60 * 60 * 1000;
+                    cutoffTime -= 7L * 24 * 60 * 60 * 1000;    // 7 Tage in ms
                     break;
                 case PERIOD_30_DAYS:
-                    cutoffTime -= 30L * 24 * 60 * 60 * 1000;
+                    cutoffTime -= 30L * 24 * 60 * 60 * 1000;   // 30 Tage in ms
                     break;
                 case PERIOD_3_MONTHS:
-                    cutoffTime -= 90L * 24 * 60 * 60 * 1000;
+                    cutoffTime -= 90L * 24 * 60 * 60 * 1000;   // ~3 Monate
                     break;
                 case PERIOD_6_MONTHS:
-                    cutoffTime -= 180L * 24 * 60 * 60 * 1000;
+                    cutoffTime -= 180L * 24 * 60 * 60 * 1000;  // ~6 Monate
                     break;
                 case PERIOD_1_YEAR:
-                    cutoffTime -= 365L * 24 * 60 * 60 * 1000;
+                    cutoffTime -= 365L * 24 * 60 * 60 * 1000;  // ~1 Jahr
                     break;
             }
         }
         
+        // Jeden Anruf prüfen
         for (CallLogEntry entry : allCalls) {
-            // Skip blacklisted numbers
+            // Blacklist-Check: Ausgeblendete Nummern überspringen
             if (blacklistManager != null && blacklistManager.isBlacklisted(entry.getNumber())) {
                 continue;
             }
             
-            // Apply time filter
+            // Zeit-Check: Nur Anrufe im gewählten Zeitraum
             if (currentPeriod == PERIOD_ALL || entry.getTimestamp() >= cutoffTime) {
                 filteredCalls.add(entry);
             }
         }
     }
 
+    /**
+     * Gibt die gefilterte Anrufliste zurück.
+     * Diese Liste wird in der UI angezeigt.
+     */
     public List<CallLogEntry> getAllCalls() {
         return filteredCalls;
     }
     
+    /**
+     * Gibt die ungefilterte Anrufliste zurück.
+     * Enthält alle Anrufe, auch ausgeblendete.
+     */
     public List<CallLogEntry> getAllCallsUnfiltered() {
         return allCalls;
     }
 
+    // === Statistik-Methoden ===
+    // Zählen Anrufe nach Typ (mit Korrektur für ALWAYS_OUTGOING)
+
+    /** Anzahl eingehender Anrufe */
     public int getIncomingCount() {
         int count = 0;
         for (CallLogEntry entry : filteredCalls) {
@@ -258,6 +336,7 @@ public class CallLogHelper {
         return count;
     }
 
+    /** Anzahl ausgehender Anrufe */
     public int getOutgoingCount() {
         int count = 0;
         for (CallLogEntry entry : filteredCalls) {
@@ -266,6 +345,7 @@ public class CallLogHelper {
         return count;
     }
 
+    /** Anzahl verpasster Anrufe */
     public int getMissedCount() {
         int count = 0;
         for (CallLogEntry entry : filteredCalls) {
@@ -274,6 +354,7 @@ public class CallLogHelper {
         return count;
     }
 
+    /** Anzahl abgelehnter Anrufe */
     public int getRejectedCount() {
         int count = 0;
         for (CallLogEntry entry : filteredCalls) {
@@ -282,22 +363,37 @@ public class CallLogHelper {
         return count;
     }
 
-    // Top 10 by call frequency
+    /**
+     * Gibt die Top-Anrufer nach Anzahl Anrufe zurück.
+     * 
+     * @param limit Maximale Anzahl Ergebnisse (z.B. 10 für Top 10)
+     * @return Liste von (Nummer → Anzahl) Paaren, sortiert nach Anzahl
+     */
     public List<Map.Entry<String, Integer>> getTopCallers(int limit) {
+        // Anrufe pro Nummer zählen
         Map<String, Integer> callerCount = new HashMap<>();
         
         for (CallLogEntry entry : filteredCalls) {
+            // compute: Wenn Key nicht existiert → 1, sonst +1
             callerCount.compute(entry.getNumber(), (k, v) -> (v == null) ? 1 : v + 1);
         }
 
+        // Nach Anzahl sortieren (absteigend)
         List<Map.Entry<String, Integer>> sorted = new ArrayList<>(callerCount.entrySet());
         sorted.sort((a, b) -> b.getValue().compareTo(a.getValue()));
         
+        // Nur die Top N zurückgeben
         return sorted.subList(0, Math.min(limit, sorted.size()));
     }
 
-    // Top 10 by total call duration
+    /**
+     * Gibt die Top-Anrufer nach Gesprächsdauer zurück.
+     * 
+     * @param limit Maximale Anzahl Ergebnisse
+     * @return Liste von (Nummer → Gesamtdauer in Sekunden) Paaren
+     */
     public List<Map.Entry<String, Long>> getTopDuration(int limit) {
+        // Gesamtdauer pro Nummer summieren
         Map<String, Long> callerDuration = new HashMap<>();
         
         for (CallLogEntry entry : filteredCalls) {
@@ -305,18 +401,29 @@ public class CallLogHelper {
             callerDuration.compute(entry.getNumber(), (k, v) -> (v == null) ? duration : v + duration);
         }
 
+        // Nach Dauer sortieren (absteigend)
         List<Map.Entry<String, Long>> sorted = new ArrayList<>(callerDuration.entrySet());
         sorted.sort((a, b) -> b.getValue().compareTo(a.getValue()));
         
         return sorted.subList(0, Math.min(limit, sorted.size()));
     }
 
+    /**
+     * Sucht den Kontaktnamen für eine Telefonnummer.
+     * 
+     * Durchsucht die gefilterte Liste nach einem Eintrag mit dieser Nummer
+     * der einen Kontaktnamen hat. Gibt die Nummer selbst zurück wenn
+     * kein Name gefunden wird.
+     * 
+     * @param number Telefonnummer
+     * @return Kontaktname oder die Nummer wenn unbekannt
+     */
     public String getContactNameForNumber(String number) {
         for (CallLogEntry entry : filteredCalls) {
             if (entry.getNumber().equals(number) && !entry.getContactName().isEmpty()) {
                 return entry.getContactName();
             }
         }
-        return number;
+        return number;  // Fallback: Nummer selbst zurückgeben
     }
 }

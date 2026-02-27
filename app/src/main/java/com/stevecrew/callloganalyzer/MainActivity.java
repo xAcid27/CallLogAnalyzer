@@ -24,39 +24,37 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Haupt-Activity der CallLogAnalyzer App.
+ * Hauptaktivität der CallLogAnalyzer App.
  * 
  * Struktur:
- * - TabLayout oben (Übersicht / Alle Anrufe)
- * - FragmentContainer für die Tab-Inhalte
+ * - TabLayout oben mit zwei Tabs (Übersicht / Alle Anrufe)
+ * - FragmentContainer der je nach Tab das passende Fragment zeigt
  * 
  * Verantwortlichkeiten:
- * - Permission-Handling für READ_CALL_LOG
+ * - Permission-Handling (READ_CALL_LOG, READ_CONTACTS)
  * - Initialisierung von CallLogHelper und BlacklistManager
  * - Tab-Navigation zwischen Fragments
  * - Detail-Dialog für einzelne Nummern (showCallDetailsForNumber)
  * 
  * Lifecycle:
- * 1. onCreate: UI aufbauen, Permissions prüfen
- * 2. Permission granted → loadData() → Observer starten
- * 3. onDestroy: Observer stoppen (Memory Leak vermeiden!)
+ * - onCreate: UI aufbauen, Permissions prüfen, Daten laden
+ * - onDestroy: Observer stoppen (Memory Leak vermeiden!)
  */
 public class MainActivity extends AppCompatActivity {
 
-    // Request-Code für Permission-Dialog (kann beliebiger int sein)
+    // Request-Code für Permission-Dialog (beliebige Zahl, muss nur eindeutig sein)
     private static final int PERMISSION_REQUEST_CODE = 100;
 
     // === Kern-Komponenten ===
     private CallLogHelper callLogHelper;      // Zugriff auf Anrufdaten
     private BlacklistManager blacklistManager; // Verwaltung ausgeblendeter Nummern
     
-    // === UI-Fragments ===
-    private OverviewFragment overviewFragment;   // Tab 1: Statistik & Charts
+    // === UI Fragments ===
+    private OverviewFragment overviewFragment;   // Tab 1: Statistiken & Charts
     private AllCallsFragment allCallsFragment;   // Tab 2: Anrufliste
 
     /**
-     * Wird beim App-Start aufgerufen.
-     * Initialisiert UI und prüft Permissions.
+     * App-Start: UI aufbauen und Daten laden.
      */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,13 +75,11 @@ public class MainActivity extends AppCompatActivity {
         tabLayout.addTab(tabLayout.newTab().setText("📊 Übersicht"));
         tabLayout.addTab(tabLayout.newTab().setText("📋 Alle Anrufe"));
         
-        // Tab-Wechsel Handler
+        // Tab-Wechsel: Fragment austauschen
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
-                // Fragment basierend auf Tab-Position wählen
                 Fragment fragment = tab.getPosition() == 0 ? overviewFragment : allCallsFragment;
-                // Fragment austauschen
                 getSupportFragmentManager()
                     .beginTransaction()
                     .replace(R.id.fragmentContainer, fragment)
@@ -97,17 +93,16 @@ public class MainActivity extends AppCompatActivity {
             public void onTabReselected(TabLayout.Tab tab) {}
         });
 
-        // === Permission prüfen ===
+        // === Permission prüfen und Daten laden ===
         if (checkPermission()) {
-            // Permission bereits vorhanden → Daten laden
             loadData();
-            // Übersicht als Start-Tab anzeigen
+            // Standard: Übersicht-Tab anzeigen
             getSupportFragmentManager()
                 .beginTransaction()
                 .replace(R.id.fragmentContainer, overviewFragment)
                 .commit();
         } else {
-            // Permission fehlt → User fragen
+            // Noch keine Permission → User fragen
             requestPermission();
         }
     }
@@ -121,21 +116,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Fordert READ_CALL_LOG und READ_CONTACTS Permissions an.
-     * Zeigt System-Dialog dem User.
+     * Fordert die benötigten Permissions an.
+     * Zeigt den System-Dialog "App möchte auf Anrufliste zugreifen".
      */
     private void requestPermission() {
         ActivityCompat.requestPermissions(this,
             new String[]{
-                Manifest.permission.READ_CALL_LOG,  // Für Anrufliste
-                Manifest.permission.READ_CONTACTS   // Für Kontaktnamen
+                Manifest.permission.READ_CALL_LOG,  // Hauptpermission für Anrufdaten
+                Manifest.permission.READ_CONTACTS   // Für Kontaktnamen-Auflösung
             },
             PERMISSION_REQUEST_CODE);
     }
 
     /**
-     * Callback nach Permission-Dialog.
-     * Wird vom System aufgerufen wenn User entschieden hat.
+     * Callback wenn User auf Permission-Dialog antwortet.
      */
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
@@ -144,7 +138,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (requestCode == PERMISSION_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission erteilt → Daten laden und UI anzeigen
+                // Permission erteilt → Daten laden und UI zeigen
                 loadData();
                 getSupportFragmentManager()
                     .beginTransaction()
@@ -158,11 +152,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Lädt Anrufdaten und richtet Live-Updates ein.
-     * 
-     * Wird aufgerufen wenn:
-     * - App startet und Permission bereits vorhanden
-     * - User Permission gerade erteilt hat
+     * Lädt die Anrufdaten und richtet Live-Updates ein.
+     * Wird aufgerufen nachdem Permission erteilt wurde.
      */
     private void loadData() {
         // Initiales Laden der Anrufdaten aus der Datenbank
@@ -181,11 +172,11 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * Wird aufgerufen wenn Activity zerstört wird (App geschlossen, Rotation, etc.)
+     * App wird beendet: Aufräumen!
      * 
-     * WICHTIG: Observer hier stoppen um Memory Leaks zu vermeiden!
-     * Der Observer hält eine Referenz auf den Context - wenn er nicht
-     * deregistriert wird, kann der GC die Activity nicht aufräumen.
+     * WICHTIG: Observer stoppen um Memory Leaks zu vermeiden.
+     * Der Observer hält eine Referenz auf den Context - wenn wir ihn
+     * nicht deregistrieren, kann die Activity nicht garbage-collected werden.
      */
     @Override
     protected void onDestroy() {
@@ -196,7 +187,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // === Getter für Fragments ===
-    // Fragments brauchen Zugriff auf Helper-Klassen
     
     public CallLogHelper getCallLogHelper() {
         return callLogHelper;
@@ -209,19 +199,20 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Zeigt einen Detail-Dialog für alle Anrufe einer bestimmten Nummer.
      * 
-     * Features:
-     * - Zusammenfassung (Gesamtanrufe, Dauer, Verteilung)
-     * - Liste aller Anrufe mit Datum, Uhrzeit, Dauer
-     * - "Ausblenden" Button um Nummer zur Blacklist hinzuzufügen
+     * Wird aufgerufen wenn User auf einen Eintrag in der Top-Liste oder
+     * Anrufliste tippt. Zeigt:
+     * - Zusammenfassung (Anzahl, Gesamtdauer, Typen)
+     * - Liste der letzten 50 Anrufe mit dieser Nummer
+     * - Button zum Ausblenden der Nummer
      * 
      * @param number Telefonnummer für die Details angezeigt werden
-     * @param sortBy "duration" für Sortierung nach Dauer, sonst nach Datum
+     * @param sortBy "calls" oder "duration" - wie die Liste sortiert wird
      */
     public void showCallDetailsForNumber(String number, String sortBy) {
-        // Kontaktname holen (oder Nummer wenn unbekannt)
+        // Kontaktname holen (oder Nummer falls unbekannt)
         String contactName = callLogHelper.getContactNameForNumber(number);
         
-        // Alle Anrufe für diese Nummer sammeln
+        // Alle Anrufe mit dieser Nummer sammeln
         List<CallLogEntry> calls = new ArrayList<>();
         for (CallLogEntry entry : callLogHelper.getAllCalls()) {
             if (entry.getNumber().equals(number)) {
@@ -229,7 +220,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // Optional: Nach Dauer sortieren (für "Top Duration" Liste)
+        // Nach Dauer sortieren wenn gewünscht (für "Top Duration" Liste)
         if (sortBy.equals("duration")) {
             calls.sort((a, b) -> Long.compare(b.getDuration(), a.getDuration()));
         }
@@ -247,25 +238,22 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // === Dialog-UI programmatisch aufbauen ===
-        // (Alternativ könnte man ein XML-Layout verwenden)
-        
+        // === Dialog-Layout aufbauen (programmatisch) ===
         SimpleDateFormat sdfDate = new SimpleDateFormat("dd.MM.yyyy", Locale.getDefault());
         SimpleDateFormat sdfTime = new SimpleDateFormat("HH:mm", Locale.getDefault());
 
-        // Haupt-Container (vertikal)
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
         mainLayout.setPadding(48, 24, 48, 24);
 
-        // Header: Telefonnummer
+        // Header mit Telefonnummer
         TextView headerText = new TextView(this);
         headerText.setText("📱  " + number);
         headerText.setTextColor(Color.parseColor("#B3B3B3"));
         headerText.setTextSize(13);
         mainLayout.addView(headerText);
 
-        // Zusammenfassung: Anzahl, Dauer, Verteilung
+        // Zusammenfassung
         TextView summaryText = new TextView(this);
         String summary = String.format(Locale.getDefault(),
             "\n📊 Gesamt: %d Anrufe  ·  %s\n" +
@@ -285,11 +273,11 @@ public class MainActivity extends AppCompatActivity {
             LinearLayout.LayoutParams.MATCH_PARENT, 2));
         mainLayout.addView(divider);
 
-        // === Anrufliste (max. 50 Einträge) ===
+        // === Anruf-Liste (max 50 Einträge) ===
         int count = 0;
         for (CallLogEntry call : calls) {
             count++;
-            // Limit auf 50 um Performance zu gewährleisten
+            // Limit auf 50 Einträge für Performance
             if (count > 50) {
                 TextView moreText = new TextView(this);
                 moreText.setText("\n... und " + (calls.size() - 50) + " weitere Anrufe");
@@ -299,19 +287,19 @@ public class MainActivity extends AppCompatActivity {
                 break;
             }
 
-            // Einzel-Anruf Zeile (horizontal)
+            // Zeile für einen Anruf
             LinearLayout entryLayout = new LinearLayout(this);
             entryLayout.setOrientation(LinearLayout.HORIZONTAL);
             entryLayout.setPadding(0, 20, 0, 20);
 
-            // Typ-Emoji (📥/📤/❌/🚫)
+            // Typ-Emoji
             TextView typeText = new TextView(this);
             typeText.setText(getCallTypeEmoji(call.getType()));
             typeText.setTextSize(18);
             typeText.setPadding(0, 0, 24, 0);
             entryLayout.addView(typeText);
 
-            // Datum und Uhrzeit (vertikal gestapelt)
+            // Datum & Uhrzeit
             LinearLayout dateLayout = new LinearLayout(this);
             dateLayout.setOrientation(LinearLayout.VERTICAL);
             dateLayout.setLayoutParams(new LinearLayout.LayoutParams(
@@ -331,7 +319,7 @@ public class MainActivity extends AppCompatActivity {
 
             entryLayout.addView(dateLayout);
 
-            // Dauer (rechtsbündig)
+            // Dauer
             TextView durationText = new TextView(this);
             durationText.setText(formatDuration(call.getDuration()));
             durationText.setTextColor(Color.parseColor("#4FC3F7"));
@@ -349,7 +337,7 @@ public class MainActivity extends AppCompatActivity {
             mainLayout.addView(entryDivider);
         }
 
-        // ScrollView für lange Listen
+        // Scrollbar für lange Listen
         android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
         scrollView.addView(mainLayout);
 
@@ -360,9 +348,8 @@ public class MainActivity extends AppCompatActivity {
             .setPositiveButton("Ausblenden", (dialog, which) -> {
                 // Nummer zur Blacklist hinzufügen
                 blacklistManager.addNumber(number);
-                // Filter neu anwenden
+                // Filter neu anwenden und UI aktualisieren
                 callLogHelper.setTimePeriod(callLogHelper.getCurrentPeriod());
-                // UI aktualisieren
                 if (overviewFragment != null) overviewFragment.updateUI();
                 if (allCallsFragment != null) allCallsFragment.updateUI();
                 Toast.makeText(this, "✓ " + number + " ausgeblendet", Toast.LENGTH_SHORT).show();
@@ -380,7 +367,7 @@ public class MainActivity extends AppCompatActivity {
             case CallLogEntry.TYPE_OUTGOING: return "📤";  // Ausgehend
             case CallLogEntry.TYPE_MISSED: return "❌";    // Verpasst
             case CallLogEntry.TYPE_REJECTED: return "🚫";  // Abgelehnt
-            default: return "📞";                          // Unbekannt
+            default: return "📞";
         }
     }
 
